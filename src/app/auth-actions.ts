@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
+import { ensurePostgresAuthSchema } from "@/db/ensure-postgres-auth-schema";
 import { verifyPassword } from "@/lib/auth/password";
 import {
   SESSION_COOKIE,
@@ -12,12 +13,17 @@ import {
   findUserByUsername,
 } from "@/lib/auth/session";
 
+async function ensureDbReady() {
+  await ensurePostgresAuthSchema();
+}
+
 export async function signupAction(input: {
   username: string;
   password: string;
   name?: string;
   workspaceName: string;
 }) {
+  await ensureDbReady();
   if (!input.username.trim() || !input.password.trim() || !input.workspaceName.trim()) {
     throw new Error("Username, password, and workspace name are required");
   }
@@ -34,6 +40,7 @@ export async function signupAction(input: {
 }
 
 export async function loginAction(username: string, password: string) {
+  await ensureDbReady();
   const user = await findUserByUsername(username);
   if (!user || !verifyPassword(password, user.passwordHash)) {
     throw new Error("Invalid username or password");

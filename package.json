@@ -13,7 +13,7 @@
     "db:migrate:supabase": "drizzle-kit push --config drizzle.config.pg.ts",
     "db:migrate:knowlex": "npx tsx scripts/migrate-knowlex-workspace.ts",
     "db:seed:owner": "npx tsx scripts/seed-owner-account.ts",
-    "db:migrate:username": "npx tsx scripts/migrate-postgres-username.ts"
+    "db:migrate:username": "set -a && . ./.env.local && set +a && npx tsx scripts/migrate-postgres-username.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

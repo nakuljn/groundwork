@@ -68,7 +68,13 @@ export function AuthModal({
                     await loginAction(signInUsername, signInPassword);
                   } catch (error) {
                     if (isRedirectError(error)) throw error;
-                    toast.error(error instanceof Error ? error.message : "Sign in failed");
+                    const message =
+                      error instanceof Error ? error.message : "Sign in failed";
+                    toast.error(
+                      message.includes("Invalid username")
+                        ? "No account with that username. Create an account or check the spelling."
+                        : message,
+                    );
                   }
                 });
               }}
