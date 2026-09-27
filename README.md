@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Groundwork
 
-## Getting Started
+Personal outreach and marketing assistant. Works for any product.
 
-First, run the development server:
+## What it does
+
+- **Home**: 3–5 AI-recommended next steps with ready-to-copy messages and tool suggestions
+- **People**: import prospects, generate LinkedIn notes / cold emails / follow-ups
+- **Activity**: log what you did (outreach, posts, calls, meetings)
+- **Spend**: track marketing and sales purchases by channel; see cost per reply/meeting/signup
+- **Settings**: describe your product, optionally point at a repo + website for an AI-written brief
+
+## Setup
 
 ```bash
+cd ~/Github/groundwork
+cp .env.example .env.local
+# Add your OPENAI_API_KEY
+
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## First run
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Go to **Settings** → add product name, audience, website, repo path → **Save**
+2. Click **Understand my product** to generate a brief
+3. Go to **People** → paste contacts from Sales Navigator
+4. Open **Home** → copy assets from next steps and execute on LinkedIn
+5. Type what you did in **"I did X, what next?"** → get fresh suggestions
+6. Log subscriptions and ad spend in **Spend**
 
-## Learn More
+Data is stored locally in `data/groundwork.db`.
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Next.js · SQLite · Drizzle · OpenAI / Claude · shadcn/ui
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Outreach messages and plan steps use the writing model: Claude Sonnet when `ANTHROPIC_API_KEY` is set, otherwise `gpt-5`. Override with `AI_WRITING_PROVIDER` and `AI_WRITING_MODEL`. Everything else uses `OPENAI_MODEL`.
