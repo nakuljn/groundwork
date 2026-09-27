@@ -30,6 +30,7 @@ export async function signupAction(input: {
     expires: session.expiresAt,
     path: "/",
   });
+  redirect("/dashboard");
 }
 
 export async function loginAction(username: string, password: string) {
@@ -45,6 +46,7 @@ export async function loginAction(username: string, password: string) {
     expires: session.expiresAt,
     path: "/",
   });
+  redirect("/dashboard");
 }
 
 export async function logoutAction() {

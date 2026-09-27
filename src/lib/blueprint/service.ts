@@ -20,22 +20,31 @@ export async function ensureDefaultWorkspace() {
   const [existing] = await db.select().from(workspaces).limit(1);
   if (existing) return existing;
 
-  const [workspace] = await db
-    .insert(workspaces)
-    .values({
-      name: "Default workspace",
-      slug: "default",
-    })
-    .returning();
+  try {
+    const [workspace] = await db
+      .insert(workspaces)
+      .values({
+        name: "Default workspace",
+        slug: "default",
+      })
+      .returning();
 
-  await db.insert(blueprints).values({
-    workspaceId: workspace.id,
-    version: LEGAL_INDIA_BLUEPRINT.version,
-    status: "published",
-    blueprintJson: JSON.stringify(LEGAL_INDIA_BLUEPRINT),
-  });
+    await db.insert(blueprints).values({
+      workspaceId: workspace.id,
+      version: LEGAL_INDIA_BLUEPRINT.version,
+      status: "published",
+      blueprintJson: JSON.stringify(LEGAL_INDIA_BLUEPRINT),
+    });
 
-  return workspace;
+    return workspace;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("unique") || message.includes("23505")) {
+      const [race] = await db.select().from(workspaces).limit(1);
+      if (race) return race;
+    }
+    throw error;
+  }
 }
 
 export async function getWorkspaceBlueprint(workspaceId: number): Promise<Blueprint> {

@@ -38,5 +38,6 @@ export function isSupabaseConfigured() {
 }
 
 export function isProductionDatabaseEnabled() {
+  if (process.env.USE_LOCAL_SQLITE?.trim() === "true") return false;
   return Boolean(getDatabaseUrl());
 }

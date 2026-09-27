@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { loginAction, signupAction } from "@/app/auth-actions";
@@ -27,7 +27,6 @@ export function AuthModal({
   onOpenChange: (open: boolean) => void;
   defaultTab?: AuthTab;
 }) {
-  const router = useRouter();
   const [tab, setTab] = useState<AuthTab>(defaultTab);
   const [pending, startTransition] = useTransition();
 
@@ -67,11 +66,8 @@ export function AuthModal({
                 startTransition(async () => {
                   try {
                     await loginAction(signInUsername, signInPassword);
-                    toast.success("Signed in");
-                    onOpenChange(false);
-                    router.push("/dashboard");
-                    router.refresh();
                   } catch (error) {
+                    if (isRedirectError(error)) throw error;
                     toast.error(error instanceof Error ? error.message : "Sign in failed");
                   }
                 });
@@ -117,12 +113,15 @@ export function AuthModal({
                       name,
                       workspaceName,
                     });
-                    toast.success("Account created");
-                    onOpenChange(false);
-                    router.push("/onboarding");
-                    router.refresh();
                   } catch (error) {
-                    toast.error(error instanceof Error ? error.message : "Signup failed");
+                    if (isRedirectError(error)) throw error;
+                    const message = error instanceof Error ? error.message : "Signup failed";
+                    if (message.includes("already taken")) {
+                      toast.error("Username taken — sign in instead, or pick another username.");
+                      setTab("signin");
+                    } else {
+                      toast.error(message);
+                    }
                   }
                 });
               }}

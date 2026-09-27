@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
-import { memberships, sessions, users, workspaces } from "@/db/schema";
+import { memberships, products, sessions, users, workspaces } from "@/db/schema";
 import { hashPassword } from "./password";
 
 export const SESSION_COOKIE = "groundwork_session";
@@ -46,13 +46,28 @@ export async function requireSessionUser() {
 }
 
 export async function getUserWorkspace(userId: number) {
-  const [membership] = await db
+  const rows = await db
     .select({ workspace: workspaces })
     .from(memberships)
     .innerJoin(workspaces, eq(workspaces.id, memberships.workspaceId))
-    .where(eq(memberships.userId, userId))
-    .limit(1);
-  return membership?.workspace ?? null;
+    .where(eq(memberships.userId, userId));
+
+  if (rows.length === 0) return null;
+
+  // Prefer the workspace this user owns, then one that already has product data.
+  const owned = rows.find((r) => r.workspace.ownerUserId === userId);
+  if (owned) return owned.workspace;
+
+  for (const row of rows) {
+    const [product] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.workspaceId, row.workspace.id))
+      .limit(1);
+    if (product) return row.workspace;
+  }
+
+  return rows[0].workspace;
 }
 
 export async function findUserByUsername(username: string) {
