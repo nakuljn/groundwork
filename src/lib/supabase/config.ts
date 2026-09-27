@@ -11,9 +11,14 @@ export function getSupabaseProjectRef(): string | null {
   }
 }
 
+function supabaseRegion() {
+  return process.env.SUPABASE_REGION?.trim() || "ap-south-1";
+}
+
 /**
- * Postgres URL for Drizzle. Prefer DATABASE_URL (copy from Supabase → Database → Connection string).
- * Or set SUPABASE_DB_PASSWORD and we build: postgresql://postgres:***@db.<ref>.supabase.co:5432/postgres
+ * Postgres URL for Drizzle.
+ * Prefer DATABASE_URL (use Supabase pooler URI from Dashboard → Database → Connection string → Transaction pooler).
+ * Or set SUPABASE_DB_PASSWORD and we build the pooler URL automatically.
  */
 export function getDatabaseUrl(): string | null {
   const direct = process.env.DATABASE_URL?.trim();
@@ -23,7 +28,9 @@ export function getDatabaseUrl(): string | null {
   const password = process.env.SUPABASE_DB_PASSWORD?.trim();
   if (!ref || !password) return null;
 
-  return `postgresql://postgres:${encodeURIComponent(password)}@db.${ref}.supabase.co:5432/postgres`;
+  const region = supabaseRegion();
+  const user = `postgres.${ref}`;
+  return `postgresql://${user}:${encodeURIComponent(password)}@aws-0-${region}.pooler.supabase.com:6543/postgres`;
 }
 
 export function isSupabaseConfigured() {

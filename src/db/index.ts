@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import fs from "fs";
 import path from "path";
-import * as schema from "./schema";
+import * as schema from "./schema-sqlite";
 
 if (typeof window !== "undefined") {
   throw new Error("@/db cannot be imported in client code");
