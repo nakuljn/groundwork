@@ -3,13 +3,16 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { importContacts } from "@/app/actions";
-import { DEFAULT_CATEGORIES } from "@/lib/categories";
+import { useBlueprint } from "@/components/blueprint-provider";
+import { contactCategories } from "@/lib/categories";
 import { CHANNELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export function ImportContactsForm() {
+  const blueprint = useBlueprint();
+  const categories = contactCategories(blueprint);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -35,9 +38,9 @@ export function ImportContactsForm() {
             id="category"
             name="category"
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-            defaultValue="advocate"
+            defaultValue={categories[0]?.key ?? "advocate"}
           >
-            {DEFAULT_CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c.key} value={c.key}>
                 {c.name}
               </option>

@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   composePostText,
   defaultPostingDays,
+  linkedinHashtagLine,
   planningWeekStart,
   storyArc,
   weekSlots,
 } from "./marketing-shared";
 import { unicodeStyle } from "./linkedin-format";
+import { LEGAL_INDIA_BLUEPRINT } from "./blueprint/legal-india.fixture";
 
 describe("defaultPostingDays", () => {
   it.each([
@@ -65,6 +67,7 @@ describe("composePostText", () => {
       "**8:45am** — pull orders.\n\n#legaltech #knowlex #AI",
     );
     expect(formattedText).toContain(unicodeStyle("8:45am", "bold"));
+    expect(linkedinHashtagLine(LEGAL_INDIA_BLUEPRINT, "Knowlex")).toBe("#legaltech #knowlex #AI");
     expect(plainText).toContain("8:45am");
     expect(plainText).not.toContain("**");
   });

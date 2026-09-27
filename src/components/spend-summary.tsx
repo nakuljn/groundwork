@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import { getSpendSummary, formatChannelLabel, formatInr } from "@/lib/spend";
+import { getSpendSummary, formatChannelLabel, formatMoney } from "@/lib/spend";
+import { getWorkspaceContext } from "@/lib/workspace";
 import {
   Card,
   CardContent,
@@ -18,7 +19,9 @@ import {
 } from "@/components/ui/table";
 
 export async function SpendSummary({ productId }: { productId: number }) {
-  const summary = await getSpendSummary(productId);
+  const { blueprint } = await getWorkspaceContext();
+  const summary = await getSpendSummary(productId, blueprint);
+  const fmt = (amount: number) => formatMoney(amount, blueprint);
   const paidChannels = summary.channelMetrics.filter(
     (m) => m.spendInr > 0 || m.replies > 0,
   );
@@ -28,11 +31,11 @@ export async function SpendSummary({ productId }: { productId: number }) {
       <div className="grid grid-cols-2 divide-x rounded-xl border">
         <div className="px-5 py-4">
           <p className="text-sm text-foreground/70">This month</p>
-          <p className="text-2xl font-semibold tabular-nums">{formatInr(summary.monthTotal)}</p>
+          <p className="text-2xl font-semibold tabular-nums">{fmt(summary.monthTotal)}</p>
         </div>
         <div className="px-5 py-4">
           <p className="text-sm text-foreground/70">All time</p>
-          <p className="text-2xl font-semibold tabular-nums">{formatInr(summary.allTimeTotal)}</p>
+          <p className="text-2xl font-semibold tabular-nums">{fmt(summary.allTimeTotal)}</p>
         </div>
       </div>
 
@@ -59,10 +62,10 @@ export async function SpendSummary({ productId }: { productId: number }) {
             {paidChannels.map((m) => (
               <TableRow key={m.channel}>
                 <TableCell>{formatChannelLabel(m.channel)}</TableCell>
-                <TableCell>{formatInr(m.spendInr)}</TableCell>
+                <TableCell>{fmt(m.spendInr)}</TableCell>
                 <TableCell>{m.replies}</TableCell>
                 <TableCell>{m.meetings}</TableCell>
-                <TableCell>{m.costPerReply ? formatInr(m.costPerReply) : "—"}</TableCell>
+                <TableCell>{m.costPerReply ? fmt(m.costPerReply) : "—"}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -80,7 +83,7 @@ export async function SpendSummary({ productId }: { productId: number }) {
                 </p>
               </div>
               <span className="shrink-0 text-sm font-medium tabular-nums">
-                {formatInr(a.costInr)}
+                {fmt(a.costMinor > 0 ? a.costMinor : a.costInr)}
               </span>
             </li>
           ))}

@@ -2,8 +2,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { activities, contacts } from "@/db/schema";
 import { startOfMonth } from "date-fns";
+import type { Blueprint } from "./blueprint/schema";
+import { LEGAL_INDIA_BLUEPRINT } from "./blueprint/legal-india.fixture";
 
-export { formatChannelLabel, formatInr } from "./spend-format";
+export { formatChannelLabel, formatInr, formatMoney } from "./spend-format";
+
+function activityCostMinor(activity: { costMinor: number; costInr: number }) {
+  return activity.costMinor > 0 ? activity.costMinor : activity.costInr;
+}
 
 export type ChannelMetrics = {
   channel: string;
@@ -17,22 +23,23 @@ export type ChannelMetrics = {
   costPerSignup: number | null;
 };
 
-export async function getSpendSummary(productId: number) {
+export async function getSpendSummary(productId: number, blueprint: Blueprint = LEGAL_INDIA_BLUEPRINT) {
   const allActivities = await db
     .select()
     .from(activities)
     .where(eq(activities.productId, productId));
 
   const paid = allActivities
-    .filter((a) => a.costInr > 0)
+    .filter((a) => activityCostMinor(a) > 0)
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   const monthStart = startOfMonth(new Date());
 
   return {
+    blueprint,
     monthTotal: paid
       .filter((a) => a.createdAt >= monthStart)
-      .reduce((sum, a) => sum + a.costInr, 0),
-    allTimeTotal: paid.reduce((sum, a) => sum + a.costInr, 0),
+      .reduce((sum, a) => sum + activityCostMinor(a), 0),
+    allTimeTotal: paid.reduce((sum, a) => sum + activityCostMinor(a), 0),
     paidActivities: paid,
     channelMetrics: await getChannelMetrics(productId),
   };
@@ -57,7 +64,7 @@ export async function getChannelMetrics(productId: number): Promise<ChannelMetri
   return Array.from(channels).map((channel) => {
     const spendInr = allActivities
       .filter((a) => a.channel === channel)
-      .reduce((sum, a) => sum + a.costInr, 0);
+      .reduce((sum, a) => sum + activityCostMinor(a), 0);
 
     const reachedOut =
       allActivities

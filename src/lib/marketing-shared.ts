@@ -159,17 +159,20 @@ export function formatSlotDate(date: Date) {
   return format(date, "EEE d MMM");
 }
 
-export function productHashtag(productName: string) {
+import type { Blueprint } from "./blueprint/schema";
+import { linkedinHashtagLine as hashtagsFromBlueprint } from "./blueprint/helpers";
+
+export function productHashtag(productName: string, fallback = "#product") {
   const slug = productName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-  return slug ? `#${slug}` : "#legaltech";
+  return slug ? `#${slug}` : fallback;
 }
 
-export function linkedinHashtagLine(productName: string) {
-  return `#legaltech ${productHashtag(productName)} #AI`;
+export function linkedinHashtagLine(blueprint: Blueprint, productName: string) {
+  return hashtagsFromBlueprint(blueprint, productName);
 }
 
-export function linkedinBodyRules(productName: string) {
-  const hashtags = linkedinHashtagLine(productName);
+export function linkedinBodyRules(blueprint: Blueprint, productName: string) {
+  const hashtags = linkedinHashtagLine(blueprint, productName);
   return `LINKEDIN BODY FORMAT (mandatory — mobile-first, scannable):
 - hook is returned separately; body must NOT repeat the hook
 - One idea per line or short block (max 2 sentences). Never write a wall of text
@@ -181,16 +184,7 @@ export function linkedinBodyRules(productName: string) {
 - 450–900 characters for the body (excluding hook)
 
 Example shape (adapt content, do not copy verbatim):
-**8:45am** — pull fresh orders from eCourts. PDFs don't copy cleanly.
-
-By 11:00am the draft looks fine on screen. Then the layout shifts in the chamber template.
-
-What breaks:
-• headings jump
-• tables break
-• fonts need normalising before filing
-
-None of this is **everyday practice** made slow by tools that don't understand court-specific layouts.
+${blueprint.content.linkedinExampleShape ?? "One concrete moment from the audience's day, then what breaks, then the insight."}
 
 ${hashtags}`;
 }
@@ -216,7 +210,11 @@ export const POST_ROLES = [
   { key: "build", label: "Behind the build", eyebrow: "Show the work" },
 ] as const;
 
-export function marketingDraftIssues(result: MarketingWeekDraft, productName?: string) {
+export function marketingDraftIssues(
+  result: MarketingWeekDraft,
+  blueprint: Blueprint,
+  productName?: string,
+) {
   const issues: string[] = [];
   const hooks = result.posts.map((post) => post.hook.toLowerCase().trim());
   if (new Set(hooks).size !== hooks.length) issues.push("Two posts share the same hook.");
@@ -255,13 +253,14 @@ export function marketingDraftIssues(result: MarketingWeekDraft, productName?: s
       issues.push(`${post.role} must end with exactly 3 hashtags.`);
     }
     if (productName) {
-      const expected = linkedinHashtagLine(productName).toLowerCase();
+      const expectedTags = linkedinHashtagLine(blueprint, productName)
+        .toLowerCase()
+        .split(/\s+/);
       const bodyTags = hashtags.join(" ").toLowerCase();
-      if (!bodyTags.includes("#legaltech") || !bodyTags.includes("#ai")) {
-        issues.push(`${post.role} hashtags must include #legaltech and #AI.`);
-      }
-      if (!bodyTags.includes(productHashtag(productName).toLowerCase())) {
-        issues.push(`${post.role} hashtags must include ${productHashtag(productName)}.`);
+      for (const tag of expectedTags) {
+        if (!bodyTags.includes(tag.replace("#", "")) && !bodyTags.includes(tag)) {
+          issues.push(`${post.role} hashtags must include ${tag}.`);
+        }
       }
     }
 

@@ -9,7 +9,15 @@ import {
   type Product,
 } from "@/db/schema";
 import { generate } from "./ai";
-import { isFirmGroup, savedFieldsOf, type CategoryKey } from "./categories";
+import { isFirmGroup, savedFieldsOf } from "./categories";
+import type { Blueprint } from "./blueprint/schema";
+import { getActiveWorkspaceBlueprint } from "./blueprint/service";
+import {
+  messageGroupsFromBlueprint,
+  organizationSegment,
+  personaForGroup,
+} from "./blueprint/helpers";
+import { applyFirmToTemplates } from "./firm-name";
 import { getCategories } from "./categories-server";
 import {
   BANNED_PHRASES,
@@ -56,77 +64,37 @@ const sectionsSchema = z.object({
   emailFollowUpBody: z.string().min(20),
 });
 
-type ReaderBrief = {
-  label: string;
-  who: string;
-  caresAbout: string;
-  ask: string;
-  tone: string;
-};
-
-const READERS: Record<string, ReaderBrief> = {
-  advocate: {
-    label: "advocate",
-    who: "An individual advocate: a solo practitioner or someone running a small chamber. They draft, translate and track their own matters, often between hearings, and read LinkedIn on their phone.",
-    caresAbout:
-      "Hours back in their own week, fewer late nights on drafting and translation, getting it right in front of the court and the client, and cost.",
-    ask: "Try it themselves on their next real draft or matter.",
-    tone: "One practitioner to another. Respectful, plain, never salesy. Talk about their day, not about a team.",
-  },
-  firm_cxo: {
-    label: "managing partner",
-    who: "The managing or founding partner of a law firm, or a firm leader such as the COO, CTO or head of knowledge management. They decide which tools the whole firm uses.",
-    caresAbout:
-      "Consistent quality across many lawyers, client turnaround, taking on more work without adding headcount, confidentiality of client documents, and whether lawyers will actually adopt a new tool. Not the mechanics of one draft.",
-    ask: "A 15–20 minute walkthrough, or a small pilot with one team at the firm.",
-    tone: "Senior to senior. The shortest and most direct of all the sets. No flattery, no detail they would delegate. Talk about the firm, using {org}.",
-  },
-  firm_partner: {
-    label: "partner",
-    who: "A partner at a law firm who runs a practice group or a book of client matters, with associates working under them.",
-    caresAbout:
-      "Turnaround on client work, the time they spend reviewing and correcting juniors' drafts, keeping quality consistent across their team, and handling peak workload.",
-    ask: "Try it on one live matter with their team, or a short walkthrough.",
-    tone: "Direct and practical. Talk about their team and their matters, not the whole firm.",
-  },
-  firm_senior_associate: {
-    label: "senior associate",
-    who: "A senior associate at a law firm. They run matters day to day, still draft heavily, and are the first reviewer of juniors' work before it reaches the partner.",
-    caresAbout:
-      "Faster first drafts and translations, less rework when reviewing juniors, meeting partners' deadlines, and being the person who finds a tool that makes the team better.",
-    ask: "Try it themselves on their next draft; if it helps, they can show it to their partner. Never ask them to buy it or decide for the firm.",
-    tone: "Collegial, peer to peer. Acknowledge the pressure of their role without being dramatic.",
-  },
-  firm_associate: {
-    label: "associate",
-    who: "A junior associate at a law firm (roughly 1–4 years). They do most of the first drafts, translations, research and case-file preparation, often late at night.",
-    caresAbout:
-      "Getting first drafts done faster and right the first time, fewer late nights, and handing in work that holds up in review.",
-    ask: "Try it free on their next draft. No demo request, no talk of buying or firm decisions.",
-    tone: "Friendly and informal-professional, like an older colleague. The lightest messages of all the sets.",
-  },
-};
-
-function readerFor(category: { key: string }) {
-  return READERS[category.key] ?? (isFirmGroup(category.key) ? READERS.firm_partner : READERS.advocate);
+function readerFor(blueprint: Blueprint, category: { key: string }) {
+  return (
+    personaForGroup(blueprint, category.key) ?? {
+      label: category.key,
+      who: "A professional in the target audience.",
+      caresAbout: "Saving time and improving outcomes.",
+      ask: "Try the product on their next real task.",
+      tone: "Direct and credible.",
+      bannedAngles: [],
+    }
+  );
 }
 
 function sectionsPrompt(
+  blueprint: Blueprint,
   product: Product,
   category: { key: string; name: string; description: string | null },
 ) {
-  const reader = readerFor(category);
-  const firm = isFirmGroup(category.key);
+  const reader = readerFor(blueprint, category);
+  const firm = isFirmGroup(blueprint, category.key);
+  const orgLabel = blueprint.vocabulary.org;
   const offer = product.offer?.trim();
   const offerRule = offer
     ? `state the offer exactly as "${offer}"`
     : "invite them to try it (there is no special offer)";
   const noteIntro = senderIntroLine(product, true);
   const orgRule = firm
-    ? "You may use {org} (their firm's name) where it reads naturally, at most once per piece."
-    : "Do not use {org}; these are individual advocates.";
+    ? `Always write the ${orgLabel}'s name as {org} — never invent, guess, or hardcode a real ${orgLabel} name. Use {org} at most once per piece where it reads naturally.`
+    : `Do not use {org}; these are individual ${blueprint.vocabulary.person}s.`;
   const firmRule = firm
-    ? `\nThe founder writes to several people at the same firm, one role at a time. Each message must stand alone: never mention colleagues, other people at the firm, or that anyone else was contacted.`
+    ? `\nThe founder writes to several people at the same ${orgLabel}, one role at a time. Each message must stand alone: never mention colleagues, other people at the ${orgLabel}, or that anyone else was contacted.`
     : "";
 
   return `PRODUCT FACTS (the only information you may use about the product):
@@ -139,9 +107,9 @@ What to ask for: ${reader.ask}
 Tone: ${reader.tone}
 ${orgRule}${firmRule}
 
-CONTEXT: The founder finds these lawyers on LinkedIn Sales Navigator and reaches out one-to-one. You are writing every piece of that sequence for this one reader type. Greetings ("Hi {name},"), the sender's introduction, the link and sign-offs are added automatically: never write them, never write a URL.
+CONTEXT: The founder finds these ${blueprint.vocabulary.person}s on LinkedIn Sales Navigator and reaches out one-to-one. You are writing every piece of that sequence for this one reader type. Greetings ("Hi {name},"), the sender's introduction, the link and sign-offs are added automatically: never write them, never write a URL.
 
-BEFORE WRITING: pick the one or two product facts that matter most to THIS reader given what they care about, and build every piece around them. A ${reader.label} should feel it was written for someone in their exact role, not for lawyers in general.
+BEFORE WRITING: pick the one or two product facts that matter most to THIS reader given what they care about, and build every piece around them. A ${reader.label} should feel it was written for someone in their exact role, not for the audience in general.
 
 LINKEDIN, STEP BY STEP
 
@@ -188,6 +156,7 @@ Return JSON:
 }
 
 async function writeSections(
+  blueprint: Blueprint,
   product: Product,
   category: { key: string; name: string; description: string | null },
   feedback?: string,
@@ -197,9 +166,8 @@ async function writeSections(
     throw new Error(`Add ${missing.join(" and ")} before drafting.`);
   }
 
-  const system =
-    "You are an experienced B2B copywriter who writes short, credible cold outreach for founders selling to lawyers and law firms in India. You understand how Indian law firms are structured and write differently for a managing partner than for a junior associate. You never invent facts.";
-  const base = sectionsPrompt(product, category);
+  const system = `You are an experienced B2B copywriter who writes short, credible cold outreach for founders selling to ${blueprint.content.writingDomain}. You understand how ${blueprint.content.audienceSummary.split("\n")[0]} and write differently for each role. You never invent facts.`;
+  const base = sectionsPrompt(blueprint, product, category);
   const prompt = feedback ? `${base}\n\n${feedback}` : base;
 
   const first = await generate({
@@ -236,11 +204,12 @@ ${issues.map((i) => `- ${i}`).join("\n")}`,
 }
 
 async function draftCategoryMessages(
+  blueprint: Blueprint,
   category: { name: string; description: string | null; key: string },
   product: Product,
   feedback?: string,
 ): Promise<OutreachTemplates> {
-  const sections = await writeSections(product, category, feedback);
+  const sections = await writeSections(blueprint, product, category, feedback);
   return fitToLimits(assembleOutreach(product, sections));
 }
 
@@ -339,17 +308,20 @@ function currentTemplates(category: OutreachCategory) {
   ) as OutreachTemplates;
 }
 
-/** Drafts every template that has not been saved as final. */
+/** Drafts LinkedIn templates that have not been saved as final. Email is a separate track. */
 export async function generateCategoryMessages(categoryId: number) {
   const { category, product } = await loadCategoryPair(categoryId);
   const saved = savedFieldsOf(category);
-  if (saved.length === TEMPLATE_KINDS.length) {
-    throw new Error("All templates are saved as final. Regenerate one type to replace it.");
+  const linkedinKinds = TEMPLATE_KINDS.filter((t) => t.channel === "linkedin");
+  const linkedinSaved = linkedinKinds.filter((t) => saved.includes(t.field)).length;
+  if (linkedinSaved === linkedinKinds.length) {
+    throw new Error("All LinkedIn templates are saved as final. Regenerate one type to replace it.");
   }
 
-  const result = await draftCategoryMessages(category, product);
+  const { blueprint } = await getActiveWorkspaceBlueprint();
+  const result = await draftCategoryMessages(blueprint, category, product);
   const merged = currentTemplates(category);
-  for (const t of TEMPLATE_KINDS) {
+  for (const t of linkedinKinds) {
     if (!saved.includes(t.field)) merged[t.field] = result[t.field];
   }
 
@@ -368,6 +340,7 @@ export async function regenerateCategoryTemplate(
   instructions?: string,
 ) {
   const { category, product } = await loadCategoryPair(categoryId);
+  const { blueprint } = await getActiveWorkspaceBlueprint();
   const target = templateFor(kind);
   const current = currentTemplates(category);
   const text = instructions?.trim();
@@ -382,7 +355,7 @@ ${text}
 Apply the feedback to that piece while keeping every rule above.`
     : undefined;
 
-  const result = await draftCategoryMessages(category, product, feedback);
+  const result = await draftCategoryMessages(blueprint, category, product, feedback);
   const saved = savedFieldsOf(category).filter((f) => f !== target.field);
 
   await db
@@ -427,6 +400,51 @@ export async function refineCategoryMessages(
   return regenerateCategoryTemplate(categoryId, kind, instructions);
 }
 
+export async function applyTargetFirmName(
+  productId: number,
+  newFirm: string,
+  previousFirm?: string | null,
+) {
+  const firm = newFirm.trim();
+  if (!firm) throw new Error("Enter a firm name first");
+
+  const categories = await db
+    .select()
+    .from(outreachCategories)
+    .where(eq(outreachCategories.productId, productId));
+
+  const { blueprint } = await getActiveWorkspaceBlueprint();
+  const orgGroups = new Set(
+    messageGroupsFromBlueprint(blueprint)
+      .filter((g) => g.kind === "organization")
+      .map((g) => g.key),
+  );
+  const firmCategories = categories.filter((category) => orgGroups.has(category.key));
+  if (firmCategories.length === 0) {
+    throw new Error(`No ${blueprint.vocabulary.org} message groups found`);
+  }
+
+  let updated = 0;
+  for (const category of firmCategories) {
+    const current = currentTemplates(category);
+    const next = applyFirmToTemplates(current, firm, previousFirm);
+    const changed = TEMPLATE_KINDS.some(({ field }) => next[field] !== current[field]);
+    if (!changed) continue;
+
+    await db
+      .update(outreachCategories)
+      .set({ ...next, updatedAt: new Date() })
+      .where(eq(outreachCategories.id, category.id));
+    updated++;
+  }
+
+  if (updated === 0) {
+    throw new Error("No messages were updated. Draft firm messages first, or change the firm name.");
+  }
+
+  return { updatedCategories: updated, firm };
+}
+
 /** @deprecated use generateCategoryMessages */
 export async function generateContactMessages(contactId: number) {
   void contactId;
@@ -445,4 +463,3 @@ export async function refineContactMessages(
   throw new Error("Messages are edited per category now, not per contact");
 }
 
-export type { CategoryKey };

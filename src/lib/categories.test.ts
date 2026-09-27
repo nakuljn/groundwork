@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { firmRoleFromTitle, messageGroupKey } from "./categories";
+import { LEGAL_INDIA_BLUEPRINT } from "./blueprint/legal-india.fixture";
+import { orgContactCategory } from "./categories";
+
+const bp = LEGAL_INDIA_BLUEPRINT;
+const firmCategory = orgContactCategory(bp);
 
 describe("firmRoleFromTitle", () => {
   it.each([
@@ -21,10 +26,12 @@ describe("firmRoleFromTitle", () => {
 
 describe("messageGroupKey", () => {
   it("keeps advocates on the advocate set", () => {
-    expect(messageGroupKey({ category: "advocate", role: "Managing Partner" })).toBe("advocate");
+    expect(messageGroupKey(bp, { category: "advocate", role: "Managing Partner" })).toBe("advocate");
   });
 
   it("routes firm contacts by title", () => {
-    expect(messageGroupKey({ category: "firm", role: "Associate" })).toBe("firm_associate");
+    expect(messageGroupKey(bp, { category: firmCategory, role: "Associate" })).toBe(
+      "firm_associate",
+    );
   });
 });

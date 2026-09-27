@@ -11,7 +11,9 @@ import {
   type Product,
 } from "@/db/schema";
 import { generate } from "@/lib/ai";
-import { FIRM_ROLES } from "@/lib/categories";
+import { audienceContextFromBlueprint } from "@/lib/blueprint/helpers";
+import { getActiveWorkspaceBlueprint } from "@/lib/blueprint/service";
+import type { Blueprint } from "@/lib/blueprint/schema";
 import {
   composePostText,
   currentWeekStart,
@@ -76,12 +78,8 @@ function productFacts(product: Product) {
     .join("\n");
 }
 
-function audienceContext() {
-  const firmRoles = FIRM_ROLES.map((r) => `- ${r.name}: ${r.description}`).join("\n");
-  return `You write for Indian legal professionals.
-- Individual advocates (solo practitioners, small chambers)
-- People at law firms, by role:
-${firmRoles}`;
+function audienceContext(blueprint: Blueprint) {
+  return audienceContextFromBlueprint(blueprint);
 }
 
 async function requireProduct(productId: number) {
@@ -158,6 +156,7 @@ function roleInstructions(role: PostRole) {
 }
 
 async function writeWeek(
+  blueprint: Blueprint,
   product: Product,
   slots: WeekSlot[],
   settings: {
@@ -202,11 +201,11 @@ PRODUCT FACTS:
 ${productFacts(product)}
 
 AUDIENCE:
-${audienceContext()}
+${audienceContext(blueprint)}
 
 ${topicLine}
-Voice guidance: ${settings.voiceGuidance?.trim() || "Clear, practical, credible, founder-led."}
-Image style: ${settings.imageStyle?.trim() || "Editorial, minimal, professional, no stock-photo clichés."}
+Voice guidance: ${settings.voiceGuidance?.trim() || blueprint.content.voice}
+Image style: ${settings.imageStyle?.trim() || blueprint.content.imageStyle}
 
 RECENT POSTS YOU WROTE (match voice, do not repeat hooks or topics):
 ${historyBlock}
@@ -222,14 +221,13 @@ For each post return:
 - hook: one standalone attention line, max 90 characters, concrete and specific. No hashtag, emoji, or question-only line. This becomes the bold first line.
 - body: the rest of the post after the hook. Follow the LinkedIn format rules below exactly.
 - title: internal label
-- imagePrompt: square editorial visual, no text/logos/clichés
+- imagePrompt: photorealistic square photograph scene (not illustration/sketch/template), describe subject, lighting, and setting; no text/logos/clichés
 
-${linkedinBodyRules(product.name)}
+${linkedinBodyRules(blueprint, product.name)}
 
 Return JSON: {"storyline":"one sentence connecting all posts","posts":[{"role":"","title":"","hook":"","body":"","imagePrompt":""}]}`;
 
-  const system =
-    "You are the editorial lead for a legal technology founder in India. You write scannable LinkedIn Page posts — short blocks, bullets, inline **bold** markers — using only supplied facts. Return valid JSON.";
+  const system = `You are the editorial lead for a ${blueprint.content.writingDomain}. You write scannable LinkedIn Page posts — short blocks, bullets, inline **bold** markers — using only supplied facts. Return valid JSON.`;
 
   const schema = weekSchema(slots.length);
   const first = await generate({
@@ -239,7 +237,7 @@ Return JSON: {"storyline":"one sentence connecting all posts","posts":[{"role":"
     task: "writing",
     temperature: 0.65,
   });
-  const issues = marketingDraftIssues(first, product.name);
+  const issues = marketingDraftIssues(first, blueprint, product.name);
   if (issues.length === 0) return first;
 
   return generate({
@@ -316,12 +314,14 @@ export async function generateMarketingWeek(productId: number, topic?: string, w
     throw new Error("All posts this week are saved, ready, or posted. Mark one as draft to replace it.");
   }
 
-  const [history, topics] = await Promise.all([
+  const [history, topics, { blueprint }] = await Promise.all([
     postedHistory(productId),
     recentTopics(productId),
+    getActiveWorkspaceBlueprint(),
   ]);
 
   const result = await writeWeek(
+    blueprint,
     product,
     emptySlots,
     settings,
@@ -373,9 +373,10 @@ export async function regenerateMarketingPost(postId: number, instructions?: str
   if (!post) throw new Error("Post not found");
   const [week] = await db.select().from(contentWeeks).where(eq(contentWeeks.id, post.contentWeekId));
   if (!week) throw new Error("Content week not found");
-  const [product, settings] = await Promise.all([
+  const [product, settings, { blueprint }] = await Promise.all([
     requireProduct(week.productId),
     ensureMarketingSettings(week.productId),
+    getActiveWorkspaceBlueprint(),
   ]);
 
   const hook = post.hook ?? post.plainText.split("\n")[0] ?? "";
@@ -395,12 +396,11 @@ ${instructions?.trim() ? `Founder instruction: ${instructions.trim()}` : "Rewrit
 
 hook: max 90 chars, standalone, no hashtags.
 
-${linkedinBodyRules(product.name)}
+${linkedinBodyRules(blueprint, product.name)}
 
 Return JSON: {"title":"","hook":"","body":"","imagePrompt":""}`;
 
-  const regenSystem =
-    "You edit one LinkedIn Page post for a legal technology founder. Use only supplied product facts. Write scannable posts with bullets and **bold** markers. Return valid JSON.";
+  const regenSystem = `You edit one LinkedIn Page post for a ${blueprint.content.writingDomain}. Use only supplied product facts. Write scannable posts with bullets and **bold** markers. Return valid JSON.`;
 
   let result = await generate({
     system: regenSystem,
@@ -412,6 +412,7 @@ Return JSON: {"title":"","hook":"","body":"","imagePrompt":""}`;
 
   const regenIssues = marketingDraftIssues(
     { storyline: week.storyline ?? "", posts: [{ ...result, role: post.role as PostRole }] },
+    blueprint,
     product.name,
   );
   if (regenIssues.length > 0) {

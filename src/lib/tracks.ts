@@ -10,6 +10,9 @@ import {
 } from "@/db/schema";
 import type { TrackWithSteps } from "./track-types";
 import { generate } from "./ai";
+import type { Blueprint } from "./blueprint/schema";
+import { getTrackTemplate, trackTemplates } from "./blueprint/helpers";
+import { LEGAL_INDIA_BLUEPRINT } from "./blueprint/legal-india.fixture";
 
 export const MAX_ACTIVE_TRACKS = 2;
 
@@ -25,86 +28,37 @@ export type TrackTemplate = {
 
 export type TrackAgent = "find_prospects" | "draft_messages";
 
-/** Which skeleton step gets an inline agent, per track key (1-based position). */
-const STEP_AGENTS: Record<string, Record<number, TrackAgent>> = {
-  linkedin_sales: { 2: "find_prospects", 3: "draft_messages" },
-  cold_email: { 2: "find_prospects", 3: "draft_messages" },
-};
+function stepAgentsFromBlueprint(blueprint: Blueprint, trackKey: string): Record<number, TrackAgent> {
+  const template = getTrackTemplate(blueprint, trackKey);
+  if (!template) return {};
+  const map: Record<number, TrackAgent> = {};
+  for (const [pos, agent] of Object.entries(template.stepAgents)) {
+    map[Number(pos)] = agent;
+  }
+  return map;
+}
 
-export const TRACK_TEMPLATES: TrackTemplate[] = [
-  {
-    key: "linkedin_sales",
-    name: "LinkedIn sales",
-    channel: "linkedin",
-    activityType: "linkedin_outreach",
-    goal: "Book demos with decision-makers through direct LinkedIn outreach.",
-    summary: "The core sales track. Find the right people, connect, message, follow up and book demos.",
-    skeleton: [
-      "Make your LinkedIn profile read like the product's front door (headline, about, featured)",
-      "Build your first list of 20-30 prospects — Groundwork will search and reason about who fits",
-      "Write a personal connection note for each prospect on your list",
-      "Send the first batch of connection requests (15-20 a day, under the weekly limit)",
-      "Message everyone who accepted with a short, specific opener and a demo or trial offer",
-      "Follow up with people who read but did not reply, 3-4 days later",
-      "Run demos, then ask each person for feedback and one referral",
-      "Review what worked (acceptance and reply rate) and rewrite the note for the next batch",
-    ],
-  },
-  {
-    key: "cold_email",
-    name: "Cold email",
-    channel: "email",
-    activityType: "cold_email",
-    goal: "Start conversations by email with firms that publish contact details.",
-    summary: "For prospects with public emails: firm websites, directories, bar association lists.",
-    skeleton: [
-      "Set up a sending address and signature that looks professional (not a free Gmail if avoidable)",
-      "Build a list of 30 prospects with public emails — Groundwork will search for them",
-      "Write a personal cold email for each prospect on your list",
-      "Send the first 10-15 emails by hand and log them",
-      "Send follow-ups to non-repliers after 3-4 days",
-      "Reply fast to everyone who answers and offer a short demo",
-      "Review open and reply rates and rewrite the subject line and first sentence",
-    ],
-  },
-  {
-    key: "linkedin_content",
-    name: "LinkedIn content",
-    channel: "linkedin",
-    activityType: "post",
-    goal: "Build credibility so people accept requests and reply to outreach.",
-    summary: "Slow-burn trust. Posts that show the product solving a real problem for the audience.",
-    skeleton: [
-      "Pick 3 topics the audience cares about that the product has a strong answer to",
-      "Write and publish a first post: the problem you saw and why you built the product",
-      "Publish a short demo post (screen recording or before/after)",
-      "Comment thoughtfully on 10 posts from people in your target audience",
-      "Publish a post with a concrete tip or result the audience can use today",
-      "Message people who engaged with your posts and offer a demo",
-      "Review which post got the most reach and plan the next three like it",
-    ],
-  },
-  {
-    key: "community",
-    name: "Communities and referrals",
-    channel: "offline",
-    activityType: "other",
-    goal: "Get introduced through groups, associations and the people you already know.",
-    summary: "Warm intros convert best. Use WhatsApp groups, associations, events and friends.",
-    skeleton: [
-      "List 10 people you know who are in or close to the target audience",
-      "Message each one personally asking for feedback, not a sale",
-      "Find 3 communities where the audience gathers (associations, WhatsApp or Telegram groups, forums)",
-      "Join them and contribute something useful before mentioning the product",
-      "Share a short, helpful post in each community with an offer to try the product",
-      "Ask every happy user for one introduction to a peer",
-      "Review which source brought real users and double down on it",
-    ],
-  },
-];
+function trackTemplatesAsLegacy(blueprint: Blueprint): TrackTemplate[] {
+  return trackTemplates(blueprint).map((t) => ({
+    key: t.key,
+    name: t.name,
+    channel: t.channel,
+    activityType: t.activityType,
+    goal: t.goal,
+    summary: t.summary,
+    skeleton: t.skeleton,
+  }));
+}
 
-export function getTemplate(key: string) {
-  return TRACK_TEMPLATES.find((t) => t.key === key);
+/** @deprecated use getTrackTemplates(blueprint) */
+export const TRACK_TEMPLATES: TrackTemplate[] = trackTemplatesAsLegacy(LEGAL_INDIA_BLUEPRINT);
+
+export function getTrackTemplates(blueprint: Blueprint): TrackTemplate[] {
+  return trackTemplatesAsLegacy(blueprint);
+}
+
+export function getTemplate(key: string, blueprint: Blueprint = LEGAL_INDIA_BLUEPRINT) {
+  return getTrackTemplates(blueprint).find((t) => t.key === key);
 }
 
 const stepsSchema = z.object({
@@ -122,28 +76,41 @@ const stepsSchema = z.object({
     .max(10),
 });
 
-function agentForStep(trackKey: string, position: number): TrackAgent | null {
-  return STEP_AGENTS[trackKey]?.[position] ?? null;
+function agentForStep(
+  blueprint: Blueprint,
+  trackKey: string,
+  position: number,
+): TrackAgent | null {
+  return stepAgentsFromBlueprint(blueprint, trackKey)[position] ?? null;
 }
 
 export function resolveStepAgent(
   trackKey: string,
   position: number,
   stored: string | null,
+  blueprint: Blueprint = LEGAL_INDIA_BLUEPRINT,
 ): TrackAgent | null {
   if (stored === "find_prospects" || stored === "draft_messages") return stored;
-  return agentForStep(trackKey, position);
+  return agentForStep(blueprint, trackKey, position);
 }
 
-const AGENT_INSTRUCTIONS: Record<TrackAgent, string> = {
-  find_prospects:
-    "Click Find prospects. Groundwork searches the web, skips people already on your list, and shows who fits.",
-  draft_messages:
-    "Draft messages for advocates and for each role at a firm (managing partner, partner, senior associate, associate). Copy the set that matches who you are writing to.",
-};
+function agentInstructions(blueprint: Blueprint, agent: TrackAgent): string {
+  for (const track of blueprint.tracks) {
+    const text = track.agentInstructions?.[agent];
+    if (text) return text;
+  }
+  if (agent === "find_prospects") {
+    return "Click Find prospects. Groundwork searches the web, skips people already on your list, and shows who fits.";
+  }
+  return "Draft messages for each audience segment. Copy the set that matches who you are writing to.";
+}
 
-export async function startTrack(productId: number, key: string) {
-  const template = getTemplate(key);
+export async function startTrack(
+  productId: number,
+  key: string,
+  blueprint: Blueprint = LEGAL_INDIA_BLUEPRINT,
+) {
+  const template = getTemplate(key, blueprint);
   if (!template) throw new Error("Unknown track");
 
   const [{ value: activeCount }] = await db
@@ -215,13 +182,13 @@ ${template.skeleton.map((s, i) => `${i + 1}. ${s}`).join("\n")}`,
 
   await db.insert(trackSteps).values(
     result.steps.map((s, i) => {
-      const agent = agentForStep(template.key, i + 1);
+      const agent = agentForStep(blueprint, template.key, i + 1);
       return {
         trackId: track.id,
         position: i + 1,
         title: s.title,
         why: s.why,
-        instructions: agent ? AGENT_INSTRUCTIONS[agent] : s.instructions,
+        instructions: agent ? agentInstructions(blueprint, agent) : s.instructions,
         assetText: agent ? null : s.assetText || null,
         toolSuggestion: agent ? null : s.toolSuggestion || null,
         agent,
@@ -251,7 +218,7 @@ export async function getTracks(productId: number): Promise<TrackWithSteps[]> {
   return rows.map((t) => {
     const own = steps.filter((s) => s.trackId === t.id).map((s) => ({
       ...s,
-      agent: resolveStepAgent(t.key, s.position, s.agent),
+      agent: resolveStepAgent(t.key, s.position, s.agent, LEGAL_INDIA_BLUEPRINT),
     }));
     const current = own.find((s) => s.status === "todo") ?? null;
     return {

@@ -27,10 +27,10 @@ export async function generateImagePng(prompt: string): Promise<Buffer> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini",
+      model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1",
       prompt,
       size: "1024x1024",
-      quality: "medium",
+      quality: process.env.OPENAI_IMAGE_QUALITY ?? "high",
       output_format: "png",
     }),
     signal: AbortSignal.timeout(120000),

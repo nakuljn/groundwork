@@ -2,6 +2,8 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { products, researchRuns, type ResearchRun } from "@/db/schema";
 import { generate } from "./ai";
+import type { Blueprint } from "./blueprint/schema";
+import { LEGAL_INDIA_BLUEPRINT } from "./blueprint/legal-india.fixture";
 import {
   extractionSchema,
   guideSchema,
@@ -21,11 +23,13 @@ export async function runProspectResearch({
   target,
   location,
   count,
+  blueprint = LEGAL_INDIA_BLUEPRINT,
 }: {
   productId: number;
   target: string;
   location: string;
   count: number;
+  blueprint?: Blueprint;
 }) {
   const [product] = await db
     .select()
@@ -48,7 +52,13 @@ ${product.brief ?? product.oneLiner ?? product.name}
 
 Target: ${target}
 Location: ${location || "not specified"}
-Number of prospects wanted: ${count}`,
+Number of prospects wanted: ${count}
+
+Prospecting hints from workspace blueprint:
+Sources: ${blueprint.prospecting.sources.join(", ")}
+Search hints: ${blueprint.prospecting.searchHints.join("; ")}
+Size examples: ${blueprint.prospecting.sizeEstimateExamples.join(", ")}
+Vocabulary: ${blueprint.vocabulary.org} / ${blueprint.vocabulary.person}`,
     schema: guideSchema,
   });
 

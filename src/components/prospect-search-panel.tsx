@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DEFAULT_CATEGORIES } from "@/lib/categories";
+import { useBlueprint } from "@/components/blueprint-provider";
+import { contactCategories } from "@/lib/categories";
 
 export type ResearchData = {
   runId: number;
@@ -38,10 +39,12 @@ export function ProspectSearchPanel({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const blueprint = useBlueprint();
+  const categories = contactCategories(blueprint);
   const [pending, startTransition] = useTransition();
   const [sheetPending, startSheet] = useTransition();
   const [sheet, setSheet] = useState("");
-  const [importCategory, setImportCategory] = useState("advocate");
+  const [importCategory, setImportCategory] = useState(categories[0]?.key ?? "advocate");
   const [target, setTarget] = useState(research?.target ?? product.audience ?? "");
   const [location, setLocation] = useState(research?.location ?? "");
 
@@ -147,7 +150,7 @@ export function ProspectSearchPanel({
               onChange={(e) => setImportCategory(e.target.value)}
               className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 text-sm"
             >
-              {DEFAULT_CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.name}
                 </option>

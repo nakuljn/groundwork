@@ -6,6 +6,7 @@ import {
   Megaphone,
   MessageSquare,
   Settings,
+  Sparkles,
 } from "lucide-react";
 
 export type NavItem = {
@@ -32,7 +33,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Sales",
     items: [
       { href: "/plan", label: "Plan", icon: ListChecks },
-      { href: "/list", label: "Messages", icon: MessageSquare },
+      { href: "/list", label: "LinkedIn messages", icon: MessageSquare },
     ],
     soon: [{ label: "Leads", description: "B2B firms and clients" }],
   },
@@ -52,6 +53,7 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export const NAV_BOTTOM: NavItem[] = [
+  { href: "/onboarding", label: "Tailor workspace", icon: Sparkles },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  generateMarketingImageAction,
   regenerateMarketingPostAction,
   removeMarketingImageAction,
   saveMarketingPostAction,
@@ -57,6 +56,7 @@ export function MarketingPostEditor({ post, product }: { post: MarketingPost; pr
   const router = useRouter();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [pending, startTransition] = useTransition();
+  const [imageGenerating, setImageGenerating] = useState(false);
   const [title, setTitle] = useState(post.title ?? "");
   const [text, setText] = useState(post.formattedText || post.plainText);
   const [imagePrompt, setImagePrompt] = useState(post.imagePrompt ?? "");
@@ -129,6 +129,30 @@ export function MarketingPostEditor({ post, product }: { post: MarketingPost; pr
   const copy = async () => {
     await navigator.clipboard.writeText(text);
     toast.success("Formatted post copied");
+  };
+
+  const generateImage = () => {
+    if (!imagePrompt.trim() || imageGenerating) return;
+    setImageGenerating(true);
+    toast.message("Generating image… feel free to browse other pages", { duration: 5000 });
+
+    void fetch("/api/marketing-images/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id, prompt: imagePrompt }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Image generation failed");
+        }
+        router.refresh();
+        toast.success("Image generated");
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : "Image generation failed");
+      })
+      .finally(() => setImageGenerating(false));
   };
 
   return (
@@ -225,9 +249,9 @@ export function MarketingPostEditor({ post, product }: { post: MarketingPost; pr
         <div className="space-y-2">
           <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} rows={4} placeholder="Image prompt" className="text-sm" />
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" disabled={pending || !imagePrompt.trim()} onClick={() => run(() => generateMarketingImageAction(post.id, imagePrompt), "Image generated")}>
+            <Button size="sm" variant="outline" disabled={imageGenerating || !imagePrompt.trim()} onClick={generateImage}>
               <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
-              Generate
+              {imageGenerating ? "Generating…" : "Generate"}
             </Button>
             {imageUrl && (
               <>

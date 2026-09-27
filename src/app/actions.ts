@@ -17,10 +17,12 @@ import {
   refineCategoryMessages as refineCategoryMessagesLib,
   regenerateCategoryTemplate as regenerateCategoryTemplateLib,
   saveCategoryTemplate as saveCategoryTemplateLib,
+  applyTargetFirmName as applyTargetFirmNameLib,
 } from "@/lib/writing";
 import { deleteTrack, finishStep, setTrackStatus, startTrack } from "@/lib/tracks";
 import { isDuplicateProspect } from "@/lib/dedup";
-import { applyTemplate, inferCategoryKey, messageGroupKey } from "@/lib/categories";
+import { applyTemplate, inferCategoryKey, messageGroupKey, orgContactCategory } from "@/lib/categories";
+import { getActiveWorkspaceBlueprint } from "@/lib/blueprint/service";
 import { templateFor, type MessageKind, type TemplateKind } from "@/lib/outreach";
 import { ensureCategories } from "@/lib/categories-server";
 import { collectProductContext } from "@/lib/product-reader";
@@ -260,6 +262,17 @@ export async function saveCategoryTemplate(categoryId: number, kind: TemplateKin
   revalidatePath("/list");
 }
 
+export async function applyTargetFirmNameAction(
+  productId: number,
+  newFirm: string,
+  previousFirm?: string,
+) {
+  const result = await applyTargetFirmNameLib(productId, newFirm, previousFirm);
+  revalidatePath("/plan");
+  revalidatePath("/list");
+  return result;
+}
+
 export async function markContactSent(contactId: number, kind: TemplateKind) {
   const [contact] = await db
     .select()
@@ -268,8 +281,9 @@ export async function markContactSent(contactId: number, kind: TemplateKind) {
 
   if (!contact) throw new Error("Contact not found");
 
-  const cats = await ensureCategories(contact.productId);
-  const cat = cats.find((c) => c.key === messageGroupKey(contact)) ?? cats[0];
+  const { blueprint } = await getActiveWorkspaceBlueprint();
+  const cats = await ensureCategories(contact.productId, blueprint);
+  const cat = cats.find((c) => c.key === messageGroupKey(blueprint, contact)) ?? cats[0];
 
   if (!cat) throw new Error("No message category found");
 
@@ -283,7 +297,10 @@ export async function markContactSent(contactId: number, kind: TemplateKind) {
     .from(products)
     .where(eq(products.id, contact.productId));
 
-  const note = applyTemplate(template, contact, { link: product?.websiteUrl });
+  const note = applyTemplate(template, contact, {
+    link: product?.websiteUrl,
+    orgPlaceholder: blueprint.vocabulary.orgPlaceholder,
+  });
 
   await db.insert(activities).values({
     productId: contact.productId,
@@ -490,7 +507,10 @@ export async function addProspectsToPeople(runId: number, indexes: number[]) {
             .filter(Boolean)
             .join(" · ") || null,
         sourceChannel: p.linkedinUrl ? "linkedin" : p.email ? "email" : "other",
-        category: inferCategoryKey(p),
+        category: inferCategoryKey(
+          (await getActiveWorkspaceBlueprint()).blueprint,
+          p,
+        ),
       })
       .returning();
 

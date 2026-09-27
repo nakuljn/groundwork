@@ -77,6 +77,19 @@ export function templateFor(kind: TemplateKind) {
   return entry;
 }
 
+export function linkedinTemplateKinds() {
+  return TEMPLATE_KINDS.filter((t) => t.channel === "linkedin");
+}
+
+export function emailTemplateKinds() {
+  return TEMPLATE_KINDS.filter((t) => t.channel === "email");
+}
+
+export function savedCountForChannel(savedFields: string[], channel: "linkedin" | "email") {
+  const kinds = channel === "linkedin" ? linkedinTemplateKinds() : emailTemplateKinds();
+  return kinds.filter((t) => savedFields.includes(t.field)).length;
+}
+
 export const LIMITS = {
   note: 300,
   inmailSubject: 200,

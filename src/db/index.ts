@@ -298,10 +298,90 @@ function ensureSchema() {
     db.exec("ALTER TABLE marketing_posts ADD COLUMN hook TEXT");
   }
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      password_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS workspaces (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      stripe_customer_id TEXT,
+      plan TEXT NOT NULL DEFAULT 'free',
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS memberships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'owner',
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS blueprints (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      version INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'draft',
+      blueprint_json TEXT NOT NULL,
+      agent_run_id INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS agent_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      graph TEXT NOT NULL,
+      thread_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running',
+      input_json TEXT,
+      output_json TEXT,
+      error TEXT,
+      tokens_used INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      completed_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS usage_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      units INTEGER NOT NULL DEFAULT 1,
+      meta_json TEXT,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  const productCols = db.prepare("PRAGMA table_info(products)").all() as { name: string }[];
+  if (!productCols.some((c) => c.name === "workspace_id")) {
+    db.exec("ALTER TABLE products ADD COLUMN workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE");
+  }
+
+  const activityCols = db.prepare("PRAGMA table_info(activities)").all() as { name: string }[];
+  if (!activityCols.some((c) => c.name === "cost_minor")) {
+    db.exec("ALTER TABLE activities ADD COLUMN cost_minor INTEGER NOT NULL DEFAULT 0");
+    db.exec("UPDATE activities SET cost_minor = cost_inr WHERE cost_minor = 0");
+  }
+  if (!activityCols.some((c) => c.name === "currency")) {
+    db.exec("ALTER TABLE activities ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR'");
+  }
+
   schemaReady = true;
 }
 
 export function getDb(): Db {
+  const { isPostgresEnabled, getPostgresDb } = require("./postgres") as typeof import("./postgres");
+  if (isPostgresEnabled()) {
+    return getPostgresDb() as unknown as Db;
+  }
   ensureSchema();
   if (!drizzleDb) {
     drizzleDb = drizzle(getSqlite(), { schema });

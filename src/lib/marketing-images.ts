@@ -33,18 +33,20 @@ export async function generateMarketingPostImage(postId: number, customPrompt?: 
   const concept = customPrompt?.trim() || post.imagePrompt?.trim();
   if (!concept) throw new Error("Add an image prompt first");
 
-  const prompt = `Create a square editorial image for a LinkedIn Page post.
+  const prompt = `Create a square photorealistic photograph for a LinkedIn Page post.
 
 Brand/product: ${product.name}
 Post idea: ${post.plainText.slice(0, 1200)}
 Visual concept: ${concept}
-Brand style guidance: ${settings?.imageStyle?.trim() || "Minimal editorial illustration, high contrast, sophisticated and credible."}
+Brand style guidance: ${settings?.imageStyle?.trim() || "Documentary-style photography, natural light, realistic textures, credible and professional — not illustrated or templated."}
 
 Requirements:
-- 1:1 square composition
-- no words, letters, captions, watermarks, logos, interface screenshots, or readable text
+- photorealistic photograph (NOT illustration, sketch, diagram, flat vector, or template mockup)
+- 1:1 square composition, shot like editorial/documentary photography
+- natural lighting, real materials and environments, believable depth of field
+- no words, letters, captions, watermarks, logos, UI screenshots, or readable text
 - no gavels, scales of justice, handshakes, or generic office stock-photo scenes
-- one clear focal idea, generous negative space, designed for a professional LinkedIn feed`;
+- one clear focal subject, generous negative space, designed for a professional LinkedIn feed`;
 
   const bytes = await generateImagePng(prompt);
   await fs.mkdir(MARKETING_IMAGE_DIR, { recursive: true });

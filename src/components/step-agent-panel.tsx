@@ -50,7 +50,7 @@ export function StepAgentPanel({
             Draft outreach messages
           </div>
           <Link href="/list" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-            Open Messages
+            Open LinkedIn messages
           </Link>
         </div>
         <DraftMessagesChecklist categories={categories} />

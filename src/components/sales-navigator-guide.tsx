@@ -2,11 +2,19 @@
 
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
-import { MESSAGE_BY_DEGREE, NAVIGATOR_ROUTINE, navigatorGuide } from "@/lib/sales-navigator";
+import type { Blueprint } from "@/lib/blueprint/schema";
+import { navigatorGuide } from "@/lib/blueprint/helpers";
+import { MESSAGE_BY_DEGREE, NAVIGATOR_ROUTINE } from "@/lib/sales-navigator";
 import { Button } from "@/components/ui/button";
 
-export function SalesNavigatorGuide({ categoryKey }: { categoryKey: string }) {
-  const guide = navigatorGuide(categoryKey);
+export function SalesNavigatorGuide({
+  categoryKey,
+  blueprint,
+}: {
+  categoryKey: string;
+  blueprint: Blueprint;
+}) {
+  const guide = navigatorGuide(blueprint, categoryKey);
 
   const copy = async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -35,19 +43,26 @@ export function SalesNavigatorGuide({ categoryKey }: { categoryKey: string }) {
         </ol>
       </section>
 
-      <section className="space-y-2">
-        <p className="font-medium">Current job title search</p>
-        <div className="flex items-start gap-2 rounded-lg bg-muted/60 p-3">
-          <code className="flex-1 break-words font-mono text-xs">{guide.titleBoolean}</code>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => copy(guide.titleBoolean)}>
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        <p className="text-xs text-foreground/60">
-          Paste into the Current job title filter. Keep OR and NOT in capitals and the quotes around
-          multi-word titles.
-        </p>
-      </section>
+      {guide.titleBoolean && (
+        <section className="space-y-2">
+          <p className="font-medium">Current job title search</p>
+          <div className="flex items-start gap-2 rounded-lg bg-muted/60 p-3">
+            <code className="flex-1 break-words font-mono text-xs">{guide.titleBoolean}</code>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => copy(guide.titleBoolean)}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <p className="text-xs text-foreground/60">
+            Paste into the Current job title filter. Keep OR and NOT in capitals and the quotes around
+            multi-word titles.
+          </p>
+        </section>
+      )}
 
       <section className="space-y-2">
         <p className="font-medium">Which message to send</p>

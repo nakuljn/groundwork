@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Copy, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
@@ -10,20 +10,24 @@ import {
   saveCategoryTemplate,
 } from "@/app/actions";
 import type { OutreachCategory } from "@/types/domain";
-import { LIMITS, TEMPLATE_KINDS, type TemplateKind } from "@/lib/outreach";
-import { categoryHasDraft, isFirmGroup, savedFieldsOf } from "@/lib/categories";
+import {
+  LIMITS,
+  TEMPLATE_KINDS,
+  linkedinTemplateKinds,
+  savedCountForChannel,
+  type TemplateKind,
+} from "@/lib/outreach";
+import type { Blueprint } from "@/lib/blueprint/schema";
+import { categoryHasLinkedInDraft, isFirmGroup, savedFieldsOf } from "@/lib/categories";
+import { fillTemplatePlaceholders } from "@/lib/firm-name";
 import { SalesNavigatorGuide } from "@/components/sales-navigator-guide";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-function fillIn(text: string, name: string, org: string) {
-  let out = text;
-  if (name.trim()) out = out.replace(/\{name\}/gi, name.trim());
-  if (org.trim()) out = out.replace(/\{org\}/gi, org.trim());
-  return out;
-}
+const LINKEDIN_KINDS = linkedinTemplateKinds();
+const LINKEDIN_TOTAL = LINKEDIN_KINDS.length;
 
 function preview(text: string, max = 72) {
   const line = text.replace(/\s+/g, " ").trim();
@@ -36,15 +40,24 @@ function TemplatePanel({
   kind,
   saved,
   defaultOpen,
+  previewName = "",
+  previewOrg = "",
+  sharedPreview = false,
+  blueprint,
 }: {
   category: OutreachCategory;
   kind: TemplateKind;
   saved: boolean;
   defaultOpen?: boolean;
+  previewName?: string;
+  previewOrg?: string;
+  sharedPreview?: boolean;
+  blueprint: Blueprint;
 }) {
   const router = useRouter();
   const spec = TEMPLATE_KINDS.find((t) => t.kind === kind)!;
   const original = category[spec.field] ?? "";
+  const [open, setOpen] = useState(defaultOpen ?? false);
   const [value, setValue] = useState(original);
   const [name, setName] = useState("");
   const [org, setOrg] = useState("");
@@ -52,13 +65,20 @@ function TemplatePanel({
   const [instructions, setInstructions] = useState("");
   const [pending, startTransition] = useTransition();
   const dirty = value !== original;
-  const filled = fillIn(value, name, org);
+  const effectiveName = sharedPreview ? previewName : name;
+  const effectiveOrg = sharedPreview ? previewOrg : org;
+  const filled = fillTemplatePlaceholders(value, effectiveName, effectiveOrg);
   const noteLength = kind === "linkedin" ? filled.length : null;
 
-  const run = (fn: () => Promise<unknown>, success: string) =>
+  useEffect(() => {
+    setValue(original);
+  }, [original]);
+
+  const run = (fn: () => Promise<unknown>, success: string, keepOpen = false) =>
     startTransition(async () => {
       try {
         await fn();
+        if (keepOpen) setOpen(true);
         router.refresh();
         toast.success(success);
       } catch (error) {
@@ -76,20 +96,32 @@ function TemplatePanel({
       toast.error("Message is empty");
       return;
     }
-    run(() => saveCategoryTemplate(category.id, kind, value), "Saved — kept next time you redraft");
+    run(() => saveCategoryTemplate(category.id, kind, value), "Saved — kept next time you redraft", true);
   };
 
   const regenerate = (withInstructions?: string) => {
     if (saved && !confirm(`Replace your saved ${spec.label.toLowerCase()}?`)) return;
-    run(async () => {
-      await regenerateCategoryTemplate(category.id, kind, withInstructions);
-      setInstructions("");
-      setImproving(false);
-    }, withInstructions ? "Updated" : "Regenerated");
+    startTransition(async () => {
+      try {
+        const next = await regenerateCategoryTemplate(category.id, kind, withInstructions);
+        setValue(typeof next === "string" ? next : original);
+        setOpen(true);
+        setInstructions("");
+        setImproving(false);
+        router.refresh();
+        toast.success(withInstructions ? "Updated" : "Regenerated");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Something went wrong");
+      }
+    });
   };
 
   return (
-    <details className="group/msg rounded-lg border bg-background" open={defaultOpen}>
+    <details
+      className="group/msg rounded-lg border bg-background"
+      open={open}
+      onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -148,22 +180,31 @@ function TemplatePanel({
               rest.
             </p>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Their first name → fills {name}"
-                className="h-8 text-sm"
-              />
-              {isFirmGroup(category.key) && (
+            {!sharedPreview && (
+              <div className="grid gap-2 sm:grid-cols-2">
                 <Input
-                  value={org}
-                  onChange={(e) => setOrg(e.target.value)}
-                  placeholder="Their firm → fills {org}"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Their first name → fills {name}"
                   className="h-8 text-sm"
                 />
-              )}
-            </div>
+                {isFirmGroup(blueprint, category.key) && (
+                  <Input
+                    value={org}
+                    onChange={(e) => setOrg(e.target.value)}
+                    placeholder={`Their ${blueprint.vocabulary.org} → fills {org}`}
+                    className="h-8 text-sm"
+                  />
+                )}
+              </div>
+            )}
+            {sharedPreview && (effectiveName || effectiveOrg) && (
+              <p className="text-xs text-muted-foreground">
+                Copy uses the target firm settings above
+                {effectiveName ? ` · {name} → ${effectiveName}` : ""}
+                {effectiveOrg ? ` · {org} → ${effectiveOrg}` : ""}
+              </p>
+            )}
 
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={save} disabled={pending || !dirty}>
@@ -224,25 +265,36 @@ function TemplatePanel({
 export function CategoryMessagesPanel({
   category,
   step,
+  previewName,
+  previewOrg,
+  sharedPreview = false,
+  blueprint,
 }: {
   category: OutreachCategory;
   step?: number;
+  previewName?: string;
+  previewOrg?: string;
+  sharedPreview?: boolean;
+  blueprint: Blueprint;
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const hasDraft = categoryHasDraft(category);
+  const hasDraft = categoryHasLinkedInDraft(category);
   const saved = savedFieldsOf(category);
-  const unsavedCount = TEMPLATE_KINDS.length - saved.length;
+  const linkedinSaved = savedCountForChannel(saved, "linkedin");
+  const unsavedCount = LINKEDIN_TOTAL - linkedinSaved;
 
   const draftAll = () => {
-    if (hasDraft && !confirm(`Redraft the ${unsavedCount} unsaved templates? Saved ones stay as they are.`)) {
+    if (hasDraft && !confirm(`Redraft the ${unsavedCount} unsaved LinkedIn templates? Saved ones stay as they are.`)) {
       return;
     }
     startTransition(async () => {
       try {
         await generateCategoryMessages(category.id);
+        setOpen(true);
         router.refresh();
-        toast.success(`${category.name} messages drafted`);
+        toast.success(`${category.name} LinkedIn messages drafted`);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed");
       }
@@ -250,7 +302,11 @@ export function CategoryMessagesPanel({
   };
 
   return (
-    <details className="group rounded-xl border bg-card">
+    <details
+      className="group rounded-xl border bg-card"
+      open={open}
+      onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -262,7 +318,7 @@ export function CategoryMessagesPanel({
             <h3 className="font-semibold">{category.name}</h3>
             {hasDraft && (
               <Badge variant="outline">
-                {saved.length}/{TEMPLATE_KINDS.length} saved
+                {linkedinSaved}/{LINKEDIN_TOTAL} saved
               </Badge>
             )}
           </div>
@@ -278,22 +334,23 @@ export function CategoryMessagesPanel({
             <ChevronDown className="h-4 w-4 text-foreground/50 transition-transform group-open/nav:rotate-180" />
           </summary>
           <div className="border-t px-4 py-4">
-            <SalesNavigatorGuide categoryKey={category.key} />
+            <SalesNavigatorGuide categoryKey={category.key} blueprint={blueprint} />
           </div>
         </details>
 
         {!hasDraft ? (
           <div className="space-y-2">
             <p className="text-sm text-foreground/70">
-              Draft all six messages, then open each one below to edit and save the ones you like.
+              Draft all four LinkedIn messages, then open each one below to edit and save the ones
+              you like.
             </p>
             <Button disabled={pending} onClick={draftAll}>
               <Sparkles className="mr-1.5 h-4 w-4" />
-              {pending ? "Drafting…" : "Draft messages"}
+              {pending ? "Drafting…" : "Draft LinkedIn messages"}
             </Button>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-3">
             {unsavedCount > 0 && (
               <div className="flex justify-end">
                 <Button size="sm" variant="outline" disabled={pending} onClick={draftAll}>
@@ -303,24 +360,21 @@ export function CategoryMessagesPanel({
               </div>
             )}
 
-            {(["linkedin", "email"] as const).map((channel) => (
-              <section key={channel} className="space-y-2">
-                <p className="px-1 text-xs font-medium uppercase tracking-wide text-foreground/50">
-                  {channel === "linkedin" ? "LinkedIn" : "Email"}
-                </p>
-                <div className="space-y-2">
-                  {TEMPLATE_KINDS.filter((t) => t.channel === channel).map((t, i) => (
-                    <TemplatePanel
-                      key={`${t.field}:${category[t.field] ?? ""}`}
-                      category={category}
-                      kind={t.kind}
-                      saved={saved.includes(t.field)}
-                      defaultOpen={channel === "linkedin" && i === 0}
+            <div className="space-y-2">
+              {LINKEDIN_KINDS.map((t, i) => (
+                <TemplatePanel
+                  key={`${category.id}-${t.kind}`}
+                  category={category}
+                  kind={t.kind}
+                  saved={saved.includes(t.field)}
+                  defaultOpen={i === 0}
+                  previewName={previewName}
+                  previewOrg={previewOrg}
+                      sharedPreview={sharedPreview}
+                      blueprint={blueprint}
                     />
-                  ))}
-                </div>
-              </section>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>

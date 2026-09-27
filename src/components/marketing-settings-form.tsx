@@ -102,7 +102,7 @@ export function MarketingSettingsForm({ settings }: { settings: MarketingSetting
           name="imageStyle"
           rows={3}
           defaultValue={settings.imageStyle ?? ""}
-          placeholder="Editorial monochrome with one warm accent, strong negative space, no text."
+          placeholder="Documentary photography, warm natural light, shallow depth of field, realistic — not illustration."
         />
       </div>
 

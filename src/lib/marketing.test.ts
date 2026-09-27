@@ -6,6 +6,7 @@ import {
   marketingDraftIssues,
   shouldProtectMarketingPost,
 } from "./marketing-shared";
+import { LEGAL_INDIA_BLUEPRINT } from "./blueprint/legal-india.fixture";
 
 describe("currentWeekStart", () => {
   it("starts weeks on Monday", () => {
@@ -111,6 +112,7 @@ describe("marketingDraftIssues", () => {
           },
         ],
       },
+      LEGAL_INDIA_BLUEPRINT,
       "Knowlex",
     );
 

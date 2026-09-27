@@ -1,7 +1,100 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const workspaces = sqliteTable("workspaces", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  ownerUserId: integer("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  stripeCustomerId: text("stripe_customer_id"),
+  plan: text("plan").notNull().default("free"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const memberships = sqliteTable("memberships", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("owner"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const blueprints = sqliteTable("blueprints", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  version: integer("version").notNull().default(1),
+  status: text("status").notNull().default("draft"),
+  blueprintJson: text("blueprint_json").notNull(),
+  agentRunId: integer("agent_run_id"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const agentRuns = sqliteTable("agent_runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  graph: text("graph").notNull(),
+  threadId: text("thread_id").notNull(),
+  status: text("status").notNull().default("running"),
+  inputJson: text("input_json"),
+  outputJson: text("output_json"),
+  error: text("error"),
+  tokensUsed: integer("tokens_used").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
+});
+
+export const usageEvents = sqliteTable("usage_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  units: integer("units").notNull().default(1),
+  metaJson: text("meta_json"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const products = sqliteTable("products", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   oneLiner: text("one_liner"),
   audience: text("audience"),
@@ -73,6 +166,8 @@ export const activities = sqliteTable("activities", {
   note: text("note"),
   outcome: text("outcome"),
   costInr: integer("cost_inr").notNull().default(0),
+  costMinor: integer("cost_minor").notNull().default(0),
+  currency: text("currency").notNull().default("INR"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -196,6 +291,13 @@ export const marketingPosts = sqliteTable("marketing_posts", {
     .$defaultFn(() => new Date()),
 });
 
+export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
+export type Workspace = typeof workspaces.$inferSelect;
+export type Membership = typeof memberships.$inferSelect;
+export type BlueprintRow = typeof blueprints.$inferSelect;
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type UsageEvent = typeof usageEvents.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type ResearchRun = typeof researchRuns.$inferSelect;
 export type OutreachCategory = typeof outreachCategories.$inferSelect;

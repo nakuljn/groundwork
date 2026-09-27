@@ -1,15 +1,18 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { outreachCategories, type OutreachCategory } from "@/db/schema";
-import { MESSAGE_GROUPS } from "@/lib/categories";
+import type { Blueprint } from "@/lib/blueprint/schema";
+import { messageGroupsFromBlueprint } from "@/lib/blueprint/helpers";
+import { getActiveWorkspaceBlueprint } from "@/lib/blueprint/service";
 
 if (typeof window !== "undefined") {
   throw new Error("@/lib/categories-server cannot be imported in client code");
 }
 
-const orderOf = (key: string) => {
-  const i = MESSAGE_GROUPS.findIndex((g) => g.key === key);
-  return i === -1 ? MESSAGE_GROUPS.length : i;
+const orderOf = (blueprint: Blueprint, key: string) => {
+  const groups = messageGroupsFromBlueprint(blueprint);
+  const i = groups.findIndex((g) => g.key === key);
+  return i === -1 ? groups.length : i;
 };
 
 function load(productId: number) {
@@ -19,22 +22,30 @@ function load(productId: number) {
     .where(eq(outreachCategories.productId, productId));
 }
 
-export async function ensureCategories(productId: number): Promise<OutreachCategory[]> {
+export async function ensureCategories(
+  productId: number,
+  blueprint?: Blueprint,
+): Promise<OutreachCategory[]> {
+  const bp = blueprint ?? (await getActiveWorkspaceBlueprint()).blueprint;
+  const groups = messageGroupsFromBlueprint(bp);
+
   let existing = await load(productId);
 
-  // Firms used to share one template set, written for partners.
   const legacyFirm = existing.find((c) => c.key === "firm");
-  if (legacyFirm && !existing.some((c) => c.key === "firm_partner")) {
+  const partnerKey = bp.segments
+    .flatMap((s) => s.roles ?? [])
+    .find((r) => r.key.includes("partner"))?.key;
+  if (legacyFirm && partnerKey && !existing.some((c) => c.key === partnerKey)) {
     await db
       .update(outreachCategories)
-      .set({ key: "firm_partner" })
+      .set({ key: partnerKey })
       .where(eq(outreachCategories.id, legacyFirm.id));
     existing = await load(productId);
   }
 
   const byKey = new Map(existing.map((c) => [c.key, c]));
   let changed = false;
-  for (const group of MESSAGE_GROUPS) {
+  for (const group of groups) {
     const row = byKey.get(group.key);
     if (!row) {
       await db.insert(outreachCategories).values({
@@ -55,10 +66,10 @@ export async function ensureCategories(productId: number): Promise<OutreachCateg
 
   const rows = changed ? await load(productId) : existing;
   return rows
-    .filter((c) => MESSAGE_GROUPS.some((g) => g.key === c.key))
-    .sort((a, b) => orderOf(a.key) - orderOf(b.key));
+    .filter((c) => groups.some((g) => g.key === c.key))
+    .sort((a, b) => orderOf(bp, a.key) - orderOf(bp, b.key));
 }
 
-export async function getCategories(productId: number) {
-  return ensureCategories(productId);
+export async function getCategories(productId: number, blueprint?: Blueprint) {
+  return ensureCategories(productId, blueprint);
 }
