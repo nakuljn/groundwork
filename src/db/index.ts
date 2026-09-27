@@ -365,6 +365,31 @@ function ensureSchema() {
     db.exec("ALTER TABLE products ADD COLUMN workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE");
   }
 
+  const userCols = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  if (userCols.length > 0 && !userCols.some((c) => c.name === "username")) {
+    db.exec("ALTER TABLE users ADD COLUMN username TEXT");
+    db.exec(`
+      UPDATE users SET username = COALESCE(
+        NULLIF(lower(trim(substr(email, 1, instr(email, '@') - 1))), ''),
+        'user_' || id
+      ) WHERE username IS NULL
+    `);
+    db.exec(`
+      CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT,
+        name TEXT,
+        password_hash TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      INSERT INTO users_new (id, username, email, name, password_hash, created_at)
+      SELECT id, username, email, name, password_hash, created_at FROM users;
+      DROP TABLE users;
+      ALTER TABLE users_new RENAME TO users;
+    `);
+  }
+
   const activityCols = db.prepare("PRAGMA table_info(activities)").all() as { name: string }[];
   if (!activityCols.some((c) => c.name === "cost_minor")) {
     db.exec("ALTER TABLE activities ADD COLUMN cost_minor INTEGER NOT NULL DEFAULT 0");

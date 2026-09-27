@@ -63,12 +63,13 @@ export function ImportContactsForm() {
           </select>
         </div>
       </div>
-      <Textarea
-        name="contacts"
-        rows={8}
-        placeholder={`Adv. Rajesh Sharma, Advocate, Gwalior HC, Gwalior, https://linkedin.com/in/..., , MP bench\nAdv. Priya Mehta, Lawyer, Jaipur District Court, Jaipur, , priya@example.com`}
-        required
-      />
+      <div className="space-y-2">
+        <Label htmlFor="contacts">Contacts</Label>
+        <Textarea id="contacts" name="contacts" rows={8} required />
+        <p className="text-xs text-muted-foreground">
+          One per line: name, role, org, city, LinkedIn URL, email
+        </p>
+      </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Importing..." : "Import contacts"}
       </Button>

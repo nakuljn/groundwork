@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Blueprint } from "@/lib/blueprint/schema";
 
@@ -133,27 +134,40 @@ export function OnboardingWizard({ workspaceId }: { workspaceId: number }) {
   return (
     <div className="space-y-6 rounded-xl border bg-card p-6">
       <div className="grid gap-3">
-        <Input
-          placeholder="Product name"
-          value={productName}
-          onChange={(e) => setProductName(e.target.value)}
-        />
-        <Input
-          placeholder="Website URL"
-          value={websiteUrl}
-          onChange={(e) => setWebsiteUrl(e.target.value)}
-        />
-        <Input
-          placeholder="GTM goal (e.g. book demos with hiring managers)"
-          value={goals}
-          onChange={(e) => setGoals(e.target.value)}
-        />
-        <Textarea
-          placeholder="Paste docs, pitch, or notes about the product and audience"
-          value={rawContext}
-          onChange={(e) => setRawContext(e.target.value)}
-          rows={6}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="onboarding-product">Product name</Label>
+          <Input
+            id="onboarding-product"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="onboarding-url">Website URL</Label>
+          <Input
+            id="onboarding-url"
+            type="url"
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="onboarding-goals">GTM goal</Label>
+          <Input
+            id="onboarding-goals"
+            value={goals}
+            onChange={(e) => setGoals(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="onboarding-context">Product notes</Label>
+          <Textarea
+            id="onboarding-context"
+            value={rawContext}
+            onChange={(e) => setRawContext(e.target.value)}
+            rows={6}
+          />
+        </div>
       </div>
 
       <Button disabled={pending} onClick={run}>

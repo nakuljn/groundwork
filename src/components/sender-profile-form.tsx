@@ -32,7 +32,6 @@ export function SenderProfileForm({ product }: { product: Product | null }) {
           id="senderName"
           name="senderName"
           defaultValue={product?.senderName ?? ""}
-          placeholder="Nakul Jain"
         />
       </div>
       <div className="space-y-2">
@@ -41,7 +40,6 @@ export function SenderProfileForm({ product }: { product: Product | null }) {
           id="senderTitle"
           name="senderTitle"
           defaultValue={product?.senderTitle ?? ""}
-          placeholder="Founder, Knowlex"
         />
       </div>
       <div className="space-y-2 md:col-span-2">
@@ -51,7 +49,6 @@ export function SenderProfileForm({ product }: { product: Product | null }) {
           name="senderContact"
           rows={3}
           defaultValue={product?.senderContact ?? ""}
-          placeholder={"nakul@knowlex.ai\n+91 98765 43210\nlinkedin.com/in/you"}
         />
         <p className="text-xs text-foreground/60">
           Goes at the bottom of cold emails and follow-ups. Fill this before drafting messages.

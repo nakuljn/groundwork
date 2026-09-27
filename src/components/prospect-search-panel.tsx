@@ -125,23 +125,32 @@ export function ProspectSearchPanel({
         <summary className="cursor-pointer text-foreground/70">Tweak search or import sheet</summary>
         <div className="mt-3 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder="Who to find"
-            />
-            <Input
-              value={location ?? ""}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="City or region"
+            <div className="space-y-2">
+              <Label htmlFor="search-target">Who to find</Label>
+              <Input
+                id="search-target"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="search-location">Location</Label>
+              <Input
+                id="search-location"
+                value={location ?? ""}
+                onChange={(e) => setLocation(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="import-sheet">Import from sheet</Label>
+            <Textarea
+              id="import-sheet"
+              value={sheet}
+              onChange={(e) => setSheet(e.target.value)}
+              rows={3}
             />
           </div>
-          <Textarea
-            value={sheet}
-            onChange={(e) => setSheet(e.target.value)}
-            rows={3}
-            placeholder="Paste from your sheet — name, role, org, city, LinkedIn, email"
-          />
           <div className="space-y-2">
             <Label htmlFor="sheetCategory">Import as</Label>
             <select

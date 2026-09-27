@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 import { NAV_BOTTOM, NAV_GROUPS, NAV_HOME, isNavActive } from "@/lib/nav";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { SignOutButton } from "@/components/sign-out-button";
 
-export function AppSidebar() {
+export function AppSidebar({ username }: { username?: string | null }) {
   const pathname = usePathname();
 
   return (
@@ -108,6 +109,10 @@ export function AppSidebar() {
               </Link>
             );
           })}
+          {username && (
+            <p className="truncate px-2.5 pt-1 text-[10px] text-muted-foreground">{username}</p>
+          )}
+          <SignOutButton />
         </div>
       </div>
     </aside>

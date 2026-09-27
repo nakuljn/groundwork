@@ -26,7 +26,7 @@ export type NavGroup = {
   soon?: NavSoonItem[];
 };
 
-export const NAV_HOME: NavItem = { href: "/", label: "Dashboard", icon: LayoutDashboard };
+export const NAV_HOME: NavItem = { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard };
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -59,6 +59,5 @@ export const NAV_BOTTOM: NavItem[] = [
 ];
 
 export function isNavActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }

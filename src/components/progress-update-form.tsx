@@ -31,12 +31,7 @@ export function ProgressUpdateForm() {
         });
       }}
     >
-      <Textarea
-        name="text"
-        placeholder='Example: "Sent 15 LinkedIn requests to Jaipur advocates, 2 accepted. Paid ₹2,400 for Sales Navigator."'
-        rows={3}
-        required
-      />
+      <Textarea name="text" rows={3} required />
       <Button type="submit" variant="outline" disabled={pending}>
         {pending ? "Logging..." : "Log it"}
       </Button>

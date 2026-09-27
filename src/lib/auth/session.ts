@@ -7,6 +7,10 @@ import { hashPassword } from "./password";
 
 export const SESSION_COOKIE = "groundwork_session";
 
+export function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
 export async function createSession(userId: number) {
   const id = randomUUID();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
@@ -51,17 +55,29 @@ export async function getUserWorkspace(userId: number) {
   return membership?.workspace ?? null;
 }
 
+export async function findUserByUsername(username: string) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.username, normalizeUsername(username)));
+  return user ?? null;
+}
+
 export async function createUserWithWorkspace(input: {
-  email: string;
+  username: string;
   password: string;
   name?: string;
   workspaceName: string;
 }) {
+  const username = normalizeUsername(input.username);
+  const existing = await findUserByUsername(username);
+  if (existing) throw new Error("Username is already taken");
+
   const passwordHash = hashPassword(input.password);
   const [user] = await db
     .insert(users)
     .values({
-      email: input.email.trim().toLowerCase(),
+      username,
       name: input.name?.trim() || null,
       passwordHash,
     })

@@ -13,6 +13,7 @@ import {
 import type { Blueprint } from "@/lib/blueprint/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function FirmTargetBar({
   productId,
@@ -78,30 +79,37 @@ export function FirmTargetBar({
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <div className="relative">
-          <UserRound className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              persistPreview(e.target.value, firm);
-            }}
-            placeholder="Their first name → fills {name}"
-            className="h-9 pl-8 text-sm"
-          />
+        <div className="space-y-1">
+          <Label className="text-xs">Preview name (fills {"{name}"})</Label>
+          <div className="relative">
+            <UserRound className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                persistPreview(e.target.value, firm);
+              }}
+              className="h-9 pl-8 text-sm"
+            />
+          </div>
         </div>
-        <div className="relative">
-          <Building2 className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            value={firm}
-            onChange={(e) => {
-              setFirm(e.target.value);
-              persistPreview(name, e.target.value);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && applyFirm()}
-            placeholder={`${org.charAt(0).toUpperCase()}${org.slice(1)} name → fills {org} in all messages`}
-            className="h-9 pl-8 text-sm"
-          />
+        <div className="space-y-1">
+          <Label className="text-xs">
+            {org.charAt(0).toUpperCase()}
+            {org.slice(1)} name (fills {"{org}"})
+          </Label>
+          <div className="relative">
+            <Building2 className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={firm}
+              onChange={(e) => {
+                setFirm(e.target.value);
+                persistPreview(name, e.target.value);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && applyFirm()}
+              className="h-9 pl-8 text-sm"
+            />
+          </div>
         </div>
       </div>
 

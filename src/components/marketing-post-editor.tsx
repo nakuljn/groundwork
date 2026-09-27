@@ -163,7 +163,11 @@ export function MarketingPostEditor({ post, product }: { post: MarketingPost; pr
         <span className="text-xs text-muted-foreground">{meta.eyebrow}</span>
       </div>
 
-      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Internal title" />
+      <Input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        aria-label="Internal title"
+      />
 
       <div className="overflow-hidden rounded-lg border">
         <div className="flex items-center gap-0.5 border-b bg-muted/35 px-2 py-1">
@@ -214,7 +218,8 @@ export function MarketingPostEditor({ post, product }: { post: MarketingPost; pr
           <Input
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            placeholder="Sharper hook, less jargon…"
+            aria-label="Improvement instructions"
+            className="flex-1"
             autoFocus
           />
           <Button disabled={pending || !instructions.trim()} onClick={() => regenerate(instructions)}>
@@ -247,7 +252,13 @@ export function MarketingPostEditor({ post, product }: { post: MarketingPost; pr
           </div>
         )}
         <div className="space-y-2">
-          <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} rows={4} placeholder="Image prompt" className="text-sm" />
+          <Textarea
+            value={imagePrompt}
+            onChange={(e) => setImagePrompt(e.target.value)}
+            rows={4}
+            aria-label="Image prompt"
+            className="text-sm"
+          />
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" disabled={imageGenerating || !imagePrompt.trim()} onClick={generateImage}>
               <ImagePlus className="mr-1.5 h-3.5 w-3.5" />

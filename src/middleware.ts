@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = ["/welcome", "/login", "/signup", "/api/"];
+const PUBLIC_PATHS = ["/"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) {
+  if (pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
-  if (process.env.ENABLE_AUTH === "true") {
-    const session = request.cookies.get("groundwork_session")?.value;
-    if (!session) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/welcome";
-      return NextResponse.redirect(url);
-    }
+  if (PUBLIC_PATHS.includes(pathname)) {
+    return NextResponse.next();
+  }
+
+  const session = request.cookies.get("groundwork_session")?.value;
+  if (!session) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.searchParams.set("auth", "signin");
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

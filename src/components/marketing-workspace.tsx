@@ -125,7 +125,7 @@ export function MarketingWorkspace({
           <Input
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Optional topic for this week"
+            aria-label="Topic for this week (optional)"
             className="flex-1"
             onKeyDown={(e) => e.key === "Enter" && !pending && planWeek()}
           />

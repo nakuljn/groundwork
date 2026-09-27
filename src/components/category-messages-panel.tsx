@@ -24,6 +24,7 @@ import { SalesNavigatorGuide } from "@/components/sales-navigator-guide";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 const LINKEDIN_KINDS = linkedinTemplateKinds();
@@ -172,7 +173,6 @@ function TemplatePanel({
               onChange={(e) => setValue(e.target.value)}
               rows={Math.min(22, Math.max(6, value.split("\n").length + 2))}
               className="min-h-[120px] resize-y font-[inherit] text-sm leading-relaxed"
-              placeholder="Edit the message here…"
             />
 
             <p className="text-xs text-foreground/60">
@@ -182,19 +182,23 @@ function TemplatePanel({
 
             {!sharedPreview && (
               <div className="grid gap-2 sm:grid-cols-2">
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Their first name → fills {name}"
-                  className="h-8 text-sm"
-                />
-                {isFirmGroup(blueprint, category.key) && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Preview name (fills {"{name}"})</Label>
                   <Input
-                    value={org}
-                    onChange={(e) => setOrg(e.target.value)}
-                    placeholder={`Their ${blueprint.vocabulary.org} → fills {org}`}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="h-8 text-sm"
                   />
+                </div>
+                {isFirmGroup(blueprint, category.key) && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Preview {blueprint.vocabulary.org} (fills {"{org}"})</Label>
+                    <Input
+                      value={org}
+                      onChange={(e) => setOrg(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -239,8 +243,8 @@ function TemplatePanel({
                 <Input
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
-                  placeholder="Shorter, more formal, mention translation first…"
-                  className="h-8 text-sm"
+                  aria-label="Improvement instructions"
+                  className="h-8 flex-1 text-sm"
                   autoFocus
                   onKeyDown={(e) =>
                     e.key === "Enter" && instructions.trim() && regenerate(instructions)

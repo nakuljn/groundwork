@@ -62,15 +62,15 @@ export function ActivityQuickAddForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="costInr">Cost (₹, optional)</Label>
-        <Input id="costInr" name="costInr" type="number" min={0} placeholder="0" />
+        <Input id="costInr" name="costInr" type="number" min={0} />
       </div>
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor="note">Note</Label>
-        <Input id="note" name="note" placeholder="Sales Navigator monthly, or 15 requests to Jaipur advocates" />
+        <Input id="note" name="note" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="outcome">Outcome (optional)</Label>
-        <Input id="outcome" name="outcome" placeholder="2 replies" />
+        <Input id="outcome" name="outcome" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="date">Date</Label>

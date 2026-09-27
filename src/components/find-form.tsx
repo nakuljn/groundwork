@@ -41,7 +41,6 @@ export function FindForm({
           id="target"
           name="target"
           defaultValue={defaultTarget}
-          placeholder="Solo advocates and small law firms doing litigation"
           required
         />
       </div>
@@ -51,7 +50,6 @@ export function FindForm({
           id="location"
           name="location"
           defaultValue={defaultLocation}
-          placeholder="Jaipur, Gwalior, Indore"
         />
       </div>
       <div className="space-y-2">

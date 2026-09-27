@@ -99,7 +99,7 @@ export async function understandProduct() {
 
   if (rawContext.includes("Path not found")) {
     throw new Error(
-      `Repo path not found: ${product.repoPath}. Use the full folder path, e.g. /Users/nakuljn/Github/knowlex-ai/services`,
+      `Repo path not found: ${product.repoPath}. Use the full absolute path to your product folder.`,
     );
   }
 

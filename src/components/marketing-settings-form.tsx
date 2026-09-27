@@ -69,7 +69,7 @@ export function MarketingSettingsForm({ settings }: { settings: MarketingSetting
         </div>
         <div className="space-y-2">
           <Label htmlFor="timezone">Timezone</Label>
-          <Input id="timezone" name="timezone" defaultValue={settings.timezone} placeholder="Asia/Kolkata" />
+          <Input id="timezone" name="timezone" defaultValue={settings.timezone} />
         </div>
       </div>
 
@@ -80,7 +80,6 @@ export function MarketingSettingsForm({ settings }: { settings: MarketingSetting
           name="voiceGuidance"
           rows={4}
           defaultValue={settings.voiceGuidance ?? ""}
-          placeholder="Practical, sharp, founder-led. Write for Indian advocates. Avoid hype."
         />
       </div>
 
@@ -91,7 +90,6 @@ export function MarketingSettingsForm({ settings }: { settings: MarketingSetting
           name="pastPosts"
           rows={6}
           defaultValue={settings.pastPosts ?? ""}
-          placeholder="Paste a few LinkedIn posts you wrote before. Groundwork uses these to match your voice and avoid repeating topics."
         />
       </div>
 
@@ -102,7 +100,6 @@ export function MarketingSettingsForm({ settings }: { settings: MarketingSetting
           name="imageStyle"
           rows={3}
           defaultValue={settings.imageStyle ?? ""}
-          placeholder="Documentary photography, warm natural light, shallow depth of field, realistic — not illustration."
         />
       </div>
 

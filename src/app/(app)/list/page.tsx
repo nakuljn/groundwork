@@ -12,7 +12,7 @@ export default async function MessagesPage() {
       <div>
         <PageHeader
           title="LinkedIn messages"
-          description="Connection notes, InMail, and follow-ups for advocates and each role at a firm."
+          description="Connection notes, InMail, and follow-ups for each audience segment."
           nextAction="Set up your product in Settings."
         />
         <Link href="/settings" className="text-sm underline">
